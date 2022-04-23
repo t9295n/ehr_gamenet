@@ -159,7 +159,7 @@ def create_vocab(df, data_path ="data/", filename="voc_final.pkl"):
 def create_patient_record(df, diag_voc, med_voc, pro_voc, data_path ="data/", filename="records_final.pkl"):
     '''
     Create a list of patient records, where each entry contains
-    medical codes corresponding to each patient
+    medical codes corresponding to each patient for each visit
     '''
     records = []
     ## loop through each patient
@@ -225,6 +225,21 @@ def clean_ddi(ddi, topk=40):
     ddi_df = fliter_ddi_df[['STITCH 1','STITCH 2']].drop_duplicates().reset_index(drop=True)
     return ddi_df
 
+
+def normalize(adj):
+    '''
+    Row-normalization of adjacency matrix (ehr/ddi)
+    corresponding to individual normalization of the feature vector of each sample
+    Keeps activations on similar levels, helps optimization.
+    https://github.com/tkipf/gcn/issues/35
+    '''
+    rowsum = np.array(adj.sum(1))
+    r_inv = np.power(rowsum, -1).flatten()
+    r_inv[np.isinf(r_inv)] = 0.
+    r_mat_inv = np.diagflat(r_inv)
+    adj = r_mat_inv.dot(adj)
+    return adj
+
 def create_ehr_adj(records, size, savepath):
     '''
     Create weighted EHR adjacency matrix
@@ -239,7 +254,12 @@ def create_ehr_adj(records, size, savepath):
                         continue
                     ehr_adj[med_i, med_j] = 1
                     ehr_adj[med_j, med_i] = 1
-    dill.dump(ehr_adj, open(savepath, 'wb'))
+
+    ## add self connection, normalize row
+    ehr_adj += np.eye(ehr_adj.shape[0])
+    ehr_adj = normalize(ehr_adj)
+
+    dill.dump(ehr_adj, open(savepath+"ehr_adj_normalized.pkl", 'wb'))
     return ehr_adj
 
 def create_ddi_adj(ddi_df, med_voc, cid2atc, atc_map, size, savepath):
@@ -262,7 +282,12 @@ def create_ddi_adj(ddi_df, med_voc, cid2atc, atc_map, size, savepath):
                         if med_voc.word2idx[i] != med_voc.word2idx[j]:
                             ddi_adj[med_voc.word2idx[i], med_voc.word2idx[j]] = 1
                             ddi_adj[med_voc.word2idx[j], med_voc.word2idx[i]] = 1
-    dill.dump(ddi_adj, open(savepath, 'wb')) 
+    ## add self connection, normalize rows
+    dill.dump(ddi_adj, open(savepath+"ddi_A.pkl", 'wb')) 
+    ddi_adj += np.eye(ddi_adj.shape[0])
+    ddi_adj = normalize(ddi_adj)
+
+    dill.dump(ddi_adj, open(savepath+"ddi_A_normalized.pkl", 'wb')) 
     return ddi_adj
 
 
@@ -304,12 +329,12 @@ def main():
 
     ## Creating EHR adjacency matrix
     print("Creating EHR adjacency matrix...")
-    ehr_adj = create_ehr_adj(records, size=len(med_voc.idx2word), savepath=DATADIR+"ehr_adj_final.pkl")
+    ehr_adj = create_ehr_adj(records, size=len(med_voc.idx2word), savepath=DATADIR)
 
     ## Creating DDI adjacency matrix
     print("Creating DDI adjacency matrix...")
     ddi_adj = create_ddi_adj(ddi_df, med_voc, cid2atc, atc_map, 
-                             size=len(med_voc.idx2word), savepath=DATADIR+"ddi_A_final.pkl")
+                             size=len(med_voc.idx2word), savepath=DATADIR)
     print("Done!")
 
 if __name__ == '__main__':

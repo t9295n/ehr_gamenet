@@ -9,7 +9,7 @@ import os
 import torch.nn.functional as F
 from collections import defaultdict
 
-from models import GAMENet
+from gamenet import GAMENet
 from util import llprint, multi_label_metric, ddi_rate_score, get_n_params
 
 torch.manual_seed(1203)
@@ -92,18 +92,13 @@ def main():
     if not os.path.exists(os.path.join("saved", model_name)):
         os.makedirs(os.path.join("saved", model_name))
 
-    data_path = 'data/records_final.pkl'
-    voc_path = 'data/voc_final.pkl'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    ehr_adj_path = 'data/ehr_adj_final.pkl'
-    ddi_adj_path = 'data/ddi_A_final.pkl'
-    device = torch.device('cuda:0')
-    # device = "cpu"
-
-    ehr_adj = dill.load(open(ehr_adj_path, 'rb'))
-    ddi_adj = dill.load(open(ddi_adj_path, 'rb'))
-    data = dill.load(open(data_path, 'rb'))
-    voc = dill.load(open(voc_path, 'rb'))
+    ehr_adj_norm = dill.load(open('data/ehr_adj_normalized.pkl', 'rb'))
+    ddi_adj = dill.load(open('data/ddi_A.pkl', 'rb'))
+    ddi_adj_norm = dill.load(open('data/ddi_A_normalized.pkl', 'rb'))
+    data = dill.load(open('data/records_final.pkl', 'rb'))
+    voc = dill.load(open('data/voc_final.pkl', 'rb'))
     diag_voc, pro_voc, med_voc = voc['diag_voc'], voc['pro_voc'], voc['med_voc']
 
     split_point = int(len(data) * 2 / 3)
@@ -122,7 +117,8 @@ def main():
     decay_weight = 0.85
 
     voc_size = (len(diag_voc.idx2word), len(pro_voc.idx2word), len(med_voc.idx2word))
-    model = GAMENet(voc_size, ehr_adj, ddi_adj, emb_dim=64, device=device, ddi_in_memory=DDI_IN_MEM)
+    model = GAMENet(voc_size, ehr_adj_norm, ddi_adj, ddi_adj_norm, emb_dim=64, device=device, ddi_in_memory=DDI_IN_MEM)
+    model.cuda()
     if TEST:
         model.load_state_dict(torch.load(open(resume_name, 'rb')))
     model.to(device=device)
