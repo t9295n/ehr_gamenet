@@ -3,7 +3,6 @@ import math
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from dnc import DNC
 from torch.nn.parameter import Parameter
 
 
