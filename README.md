@@ -1,5 +1,7 @@
 ### Implementation of GAMENet: Graph Augmented MEmory Networks for Recommending Medication Combination (https://arxiv.org/abs/1809.01852)
 
+(I am not any of the authors)
+
 Dependencies
 python 3.7
 torch 1.11
