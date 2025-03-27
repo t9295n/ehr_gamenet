@@ -1,4 +1,4 @@
-# bd4h_final_project_GAMENet
+# Implementation of GAMENet: Graph Augmented MEmory Networks for Recommending Medication Combination (https://arxiv.org/abs/1809.01852)
 
 Dependencies
 python 3.7
